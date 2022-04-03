@@ -41,8 +41,8 @@ cmake --build out/x86-64 --parallel
 #cmake --build out/11-0 --parallel
 
 set +e
-./out/basic/sentry_example2 "${msg}"
-./out/x86-64/sentry_example2 "${msg}"
-#./out/10-15-x86_64/sentry_example2 "${msg}"
-#./out/10-15/sentry_example2 "${msg}"
-#./out/11-0/sentry_example2 "${msg}"
+./out/basic/crashpad_test "${msg}"
+./out/x86-64/crashpad_test "${msg}"
+#./out/10-15-x86_64/crashpad_test "${msg}"
+#./out/10-15/crashpad_test "${msg}"
+#./out/11-0/crashpad_test "${msg}"
