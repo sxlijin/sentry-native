@@ -1,0 +1,104 @@
+name: Crashpad test
+
+on:
+  push:
+    branches:
+      - sam/crashpad_test
+
+jobs:
+  run:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (gcc 7, 32-bit)
+            os: ubuntu-18.04
+            CC: gcc-7
+            CXX: g++-7
+            TEST_X86: 1
+          - name: Linux (gcc 10)
+            os: ubuntu-20.04
+            CC: gcc-10
+            CXX: g++-10
+            # ERROR_ON_WARNINGS: 1
+            # The GCC analyzer 10.0.1 (as on CI) has an internal compiler error
+            # currently, and is not stable enough to activate.
+            # RUN_ANALYZER: gcc
+          - name: Linux (clang 11 + asan + llvm-cov)
+            os: ubuntu-20.04
+            CC: clang-11
+            CXX: clang++-11
+            ERROR_ON_WARNINGS: 1
+            RUN_ANALYZER: asan,llvm-cov
+          - name: Linux (clang 11 + kcov)
+            os: ubuntu-20.04
+            CC: clang-11
+            CXX: clang++-11
+            ERROR_ON_WARNINGS: 1
+            RUN_ANALYZER: kcov
+          - name: Linux (code-checker + valgrind)
+            os: ubuntu-20.04
+            RUN_ANALYZER: code-checker,valgrind
+          - name: macOS (xcode llvm)
+            os: macOs-latest
+            ERROR_ON_WARNINGS: 1
+            SYSTEM_VERSION_COMPAT: 0
+          - name: macOS (xcode llvm + universal)
+            os: macOs-latest
+            ERROR_ON_WARNINGS: 1
+            SYSTEM_VERSION_COMPAT: 0
+            CMAKE_DEFINES: -DCMAKE_OSX_ARCHITECTURES=arm64;x86_64
+          - name: macOS (clang 11 + asan + llvm-cov)
+            os: macOs-latest
+            CC: clang
+            CXX: clang++
+            ERROR_ON_WARNINGS: 1
+            SYSTEM_VERSION_COMPAT: 0
+            RUN_ANALYZER: asan,llvm-cov
+              #- name: Windows (VS2017, 32bit)
+              #  os: vs2017-win2016
+              #  TEST_X86: 1
+              #- name: Windows (latest)
+              #  os: windows-latest
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    env:
+      TEST_X86: ${{ matrix.TEST_X86 }}
+      ERROR_ON_WARNINGS: ${{ matrix.ERROR_ON_WARNINGS }}
+      RUN_ANALYZER: ${{ matrix.RUN_ANALYZER }}
+      CMAKE_DEFINES: ${{ matrix.CMAKE_DEFINES }}
+      SYSTEM_VERSION_COMPAT: ${{ matrix.SYSTEM_VERSION_COMPAT }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v2
+
+      - name: Installing Linux Dependencies
+        if: ${{ runner.os == 'Linux' && !env['TEST_X86'] }}
+        # workaround: https://github.com/actions/virtual-environments/issues/1536#issuecomment-698537248
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' -y
+          sudo apt update
+          sudo apt install cmake clang-11 clang-tools llvm kcov g++-10 valgrind zlib1g-dev libcurl4-openssl-dev
+
+      - name: Installing Linux 32-bit Dependencies
+        if: ${{ runner.os == 'Linux' && env['TEST_X86'] }}
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install cmake gcc-multilib g++-multilib zlib1g-dev:i386 libssl-dev:i386 libcurl4-openssl-dev:i386
+
+      - name: Expose llvm PATH for Mac
+        if: ${{ runner.os == 'macOS' }}
+        run: echo "/usr/local/opt/llvm/bin/" >> $GITHUB_PATH
+
+      - name: Build and run
+        run: |
+          cmake -B gh
+          cmake --build gh
+          ./gh/crashpad_test "${{ matrix.name }}"

@@ -566,6 +566,9 @@ if(SENTRY_BUILD_EXAMPLES)
 	add_executable(sentry_example examples/example.c)
 	target_link_libraries(sentry_example PRIVATE sentry)
 
+  add_executable(crashpad_test examples/crashpad_test.cc)
+  target_link_libraries(crashpad_test PRIVATE sentry)
+
 	if(MSVC)
 		target_compile_options(sentry_example PRIVATE $<BUILD_INTERFACE:/wd5105>)
 	endif()
