@@ -100,5 +100,5 @@ jobs:
       - name: Build and run
         run: |
           cmake -B gh
-          cmake --build gh
+          cmake --build gh --parallel
           ./gh/crashpad_test "${{ matrix.name }}"
